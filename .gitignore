@@ -1,0 +1,47 @@
+# Node.js & Frontend dependencies
+node_modules/
+.pnpm-debug.log*
+
+# Production / Compilation outputs
+dist/
+dist-electron/
+out/
+*.gemini/
+
+# Go binaries & object files
+daemon/daemon
+daemon/*.exe
+daemon/*.test
+daemon/*.prof
+bin/
+
+# SQLite Databases & persistence
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+daemon/vfs/storage/
+
+# Environment files & local variables
+.env
+.env.local
+.env.*.local
+
+# IDEs & System files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+.DS_Store
+Thumbs.db
+
+# User Workspace Contents
+workspace/Descargas/*
+!workspace/Descargas/.gitkeep
+workspace/Documentos/*
+!workspace/Documentos/.gitkeep
+workspace/Imágenes/*
+!workspace/Imágenes/.gitkeep

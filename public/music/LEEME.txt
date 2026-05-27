@@ -1,0 +1,20 @@
+INSTRUCCIONES PARA LA REPRODUCCIÓN DE CANCIONES FÍSICAS EN ELISA PLAYER:
+========================================================================
+
+El reproductor de música Elisa Player de VueOS está programado de forma inteligente: si no detecta los archivos de audio reales en esta carpeta, simula la reproducción de forma visual y fluida para evitar errores.
+
+Si deseas que la música suene de verdad, simplemente coloca tus archivos de música en formato `.mp3` dentro de esta carpeta (`public/music/`) con los siguientes nombres de archivo correspondientes a cada tema clásico del reproductor:
+
+1. Primera Canción (Beethoven):
+   * Nombre del archivo: beethoven_symphony_5.mp3
+   * Ruta completa en el proyecto: public/music/beethoven_symphony_5.mp3
+
+2. Segunda Canción (Debussy):
+   * Nombre del archivo: debussy_clair_de_lune.mp3
+   * Ruta completa en el proyecto: public/music/debussy_clair_de_lune.mp3
+
+3. Tercera Canción (Satie):
+   * Nombre del archivo: satie_gymnopedie_1.mp3
+   * Ruta completa en el proyecto: public/music/satie_gymnopedie_1.mp3
+
+Una vez que coloques los archivos `.mp3` correspondientes en esta carpeta, el reproductor de música Elisa Player del escritorio los detectará automáticamente al iniciar la reproducción y el audio sonará físicamente por los altavoces de tu sistema operativo.

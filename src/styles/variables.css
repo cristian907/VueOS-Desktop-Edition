@@ -1,0 +1,82 @@
+:root {
+  /* ── KDE Plasma Breeze Dark ── */
+
+  /* Fondos */
+  --bg-primary: #1b1e20;
+  --bg-secondary: #232629;
+  --bg-panel: #2a2e32;
+  --bg-titlebar: #2d3135;
+  --bg-hover: rgba(61, 174, 233, 0.15);
+  --bg-active: rgba(61, 174, 233, 0.25);
+
+  /* Texto */
+  --text-primary: #eff0f1;
+  --text-secondary: #bdc3c7;
+  --text-disabled: #6e7175;
+
+  /* Acentos Breeze */
+  --accent: #3daee9;
+  --accent-hover: #2d9ad7;
+  --accent-active: #2586be;
+  --danger: #ed1515;
+  --danger-hover: #c41111;
+  --warning: #f67400;
+  --success: #27ae60;
+
+  /* Bordes */
+  --border-color: #3b3f43;
+  --border-hover: rgba(61, 174, 233, 0.4);
+  --border-active: var(--accent);
+
+  /* Sombras */
+  --shadow-panel: 0 -2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-window: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-popup: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-subtle: 0 2px 6px rgba(0, 0, 0, 0.2);
+
+  /* Tipografía */
+  --font-family-base: 'Noto Sans', sans-serif;
+
+  /* Radios de borde Breeze */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Transiciones */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+}
+
+.light-theme {
+  /* ── KDE Plasma Breeze Light ── */
+
+  /* Fondos */
+  --bg-primary: #eff0f1;
+  --bg-secondary: #fcfcfc;
+  --bg-panel: #e6e8ea;
+  --bg-titlebar: #ebedef;
+  --bg-hover: rgba(41, 128, 185, 0.12);
+  --bg-active: rgba(41, 128, 185, 0.2);
+
+  /* Texto */
+  --text-primary: #232629;
+  --text-secondary: #7f8c8d;
+  --text-disabled: #b0b3b6;
+
+  /* Acentos Breeze Light */
+  --accent: #2980b9;
+  --accent-hover: #2472a4;
+  --accent-active: #1f6490;
+  --danger: #da4453;
+  --danger-hover: #c33a47;
+
+  /* Bordes */
+  --border-color: #bdc3c7;
+  --border-hover: rgba(41, 128, 185, 0.35);
+
+  /* Sombras */
+  --shadow-panel: 0 -1px 8px rgba(0, 0, 0, 0.1);
+  --shadow-window: 0 3px 12px rgba(0, 0, 0, 0.12);
+  --shadow-popup: 0 6px 20px rgba(0, 0, 0, 0.15);
+  --shadow-subtle: 0 1px 4px rgba(0, 0, 0, 0.06);
+}

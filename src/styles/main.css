@@ -1,0 +1,39 @@
+@import './variables.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-family-base);
+  
+  /* VueOS opera a pantalla completa */
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+  filter: brightness(var(--system-brightness, 100%));
+}
+
+/* Scrollbar estilo Breeze */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

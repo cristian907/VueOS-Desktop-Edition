@@ -1,0 +1,10 @@
+{
+  "version": "1.1.0",
+  "changelog": [
+    "Nueva versión 2.0 de Elisa Player (reproductor de música completamente rediseñado con playlist de doble columna integrada)",
+    "Aumento de la estabilidad del Kernel en la gestión de hilos de fondo",
+    "Optimización avanzada del OOM Killer de memoria en carga crítica (>90%)",
+    "Mejora en los tiempos de respuesta de la Pseudo-Terminal (PTY)",
+    "Corrección de errores menores de visualización en el Monitor de Sistema"
+  ]
+}
