@@ -128,6 +128,9 @@ const appRegistry: Record<string, Component> = {
   ElisaPlayerApp: defineAsyncComponent(() => import('@/components/apps/ElisaPlayerApp.vue')),
   KateApp: defineAsyncComponent(() => import('@/components/apps/KateApp.vue')),
   SysBenchApp: defineAsyncComponent(() => import('@/components/apps/SysBenchApp.vue')),
+  KolourPaintApp: defineAsyncComponent(() => import('@/components/apps/KolourPaintApp.vue')),
+  KWeatherApp: defineAsyncComponent(() => import('@/components/apps/KWeatherApp.vue')),
+  KMarkdownApp: defineAsyncComponent(() => import('@/components/apps/KMarkdownApp.vue')),
 };
 
 /**

@@ -213,21 +213,27 @@ export const useOSStore = defineStore('os', () => {
         file
       ];
 
-      // Si es un archivo de texto virtual (.docx, .xlsx, .txt) y tiene dataUrl pero no content,
+      // Si es un archivo de texto virtual (.docx, .xlsx, .txt, .md) y tiene dataUrl pero no content,
       // asignamos content = dataUrl para que Electron lo guarde como texto plano UTF-8.
       const dotIndex = file.name.lastIndexOf('.');
       const ext = dotIndex !== -1 ? file.name.slice(dotIndex).toLowerCase() : '';
       let fileContent = file.content;
-      if (['.docx', '.xlsx', '.txt', '.pdf'].includes(ext) && file.dataUrl && !fileContent) {
+      if (['.docx', '.xlsx', '.txt', '.pdf', '.md'].includes(ext) && file.dataUrl && !fileContent) {
         fileContent = file.dataUrl;
       }
 
       // Guardar físicamente en Electron
       if (window.osAPI && window.osAPI.writeFile) {
-        window.osAPI.writeFile(folderName, file.name, {
-          content: fileContent || '',
-          dataUrl: file.dataUrl || ''
-        }).catch((err) => console.error('[osStore] Error al guardar archivo físico:', err));
+        if (file.type === 'dir') {
+          const targetDir = folderName === 'Inicio' ? file.name : `${folderName}/${file.name}`;
+          window.osAPI.writeFile(targetDir, '', { content: '' })
+            .catch((err) => console.error('[osStore] Error al crear directorio físico:', err));
+        } else {
+          window.osAPI.writeFile(folderName, file.name, {
+            content: fileContent || '',
+            dataUrl: file.dataUrl || ''
+          }).catch((err) => console.error('[osStore] Error al guardar archivo físico:', err));
+        }
       }
     }
   }
@@ -236,6 +242,19 @@ export const useOSStore = defineStore('os', () => {
   function removeFileFromFolder(folderName: string, filename: string): void {
     if (fileSystem.value[folderName]) {
       fileSystem.value[folderName] = fileSystem.value[folderName].filter((f) => f.name !== filename);
+
+      const targetKey = folderName === 'Inicio' ? filename : `${folderName}/${filename}`;
+      
+      // Eliminar de forma recursiva subdirectorios de la memoria virtual (fileSystem)
+      if (fileSystem.value[targetKey] !== undefined) {
+        delete fileSystem.value[targetKey];
+        const prefix = `${targetKey}/`;
+        Object.keys(fileSystem.value).forEach((k) => {
+          if (k.startsWith(prefix)) {
+            delete fileSystem.value[k];
+          }
+        });
+      }
 
       // Eliminar físicamente en Electron
       if (window.osAPI && window.osAPI.deleteFile) {
@@ -264,14 +283,8 @@ export const useOSStore = defineStore('os', () => {
             });
           };
 
-          if (physicalFs.Descargas && physicalFs.Descargas.length > 0) {
-            fileSystem.value.Descargas = syncWorkspaceFiles(physicalFs.Descargas);
-          }
-          if (physicalFs.Documentos && physicalFs.Documentos.length > 0) {
-            fileSystem.value.Documentos = syncWorkspaceFiles(physicalFs.Documentos);
-          }
-          if (physicalFs.Imágenes && physicalFs.Imágenes.length > 0) {
-            fileSystem.value.Imágenes = physicalFs.Imágenes;
+          for (const key in physicalFs) {
+            fileSystem.value[key] = syncWorkspaceFiles(physicalFs[key]);
           }
 
           // Sincronizar documentos cargados con la app de Notas

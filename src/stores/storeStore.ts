@@ -2,13 +2,15 @@ import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
 import { SYSTEM_APPS } from '@/registry/apps';
 import { useOSStore } from '@/stores/osStore';
+import { useConfigStore } from '@/stores/configStore';
 
 export const useStoreStore = defineStore('store', () => {
   const osStore = useOSStore();
+  const configStore = useConfigStore();
 
   // Apps preinstaladas por defecto (todo el catálogo excepto las de la tienda de terceros)
   const defaultPreinstalledAppIds = SYSTEM_APPS
-    .filter((app) => app.id !== 'elisaplayer' && app.id !== 'kate' && app.id !== 'sysbench')
+    .filter((app) => app.id !== 'elisaplayer' && app.id !== 'kate' && app.id !== 'sysbench' && app.id !== 'kmarkdown')
     .map((app) => app.id);
 
   const savedInstalled = localStorage.getItem('vueui-installed-apps');
@@ -62,6 +64,10 @@ export const useStoreStore = defineStore('store', () => {
     windowsToClose.forEach((win) => {
       osStore.closeWindow(win.id);
     });
+
+    // Desanclar automáticamente de la barra de tareas y eliminar del escritorio
+    configStore.unpinApp(id);
+    configStore.removeDesktopShortcut(id);
   }
 
   function isAppInstalled(id: string): boolean {

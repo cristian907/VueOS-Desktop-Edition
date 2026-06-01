@@ -16,6 +16,8 @@ import {
   Music,
   Code,
   Gauge,
+  Palette,
+  CloudSun,
   type LucideIcon
 } from 'lucide-vue-next';
 
@@ -211,7 +213,7 @@ export const SYSTEM_APPS: AppRegistryEntry[] = [
     defaultHeight: 500,
     isSystemEssential: false,
     description: 'Reproductor de música de KDE Plasma.',
-    developer: 'antorlok Systems',
+    developer: 'VueOS Core Team',
     size: '45 MB'
   },
   {
@@ -223,7 +225,7 @@ export const SYSTEM_APPS: AppRegistryEntry[] = [
     defaultHeight: 550,
     isSystemEssential: false,
     description: 'Editor de código avanzado para desarrolladores.',
-    developer: 'antorlok Systems',
+    developer: 'VueOS Core Team',
     size: '56 MB'
   },
   {
@@ -235,7 +237,43 @@ export const SYSTEM_APPS: AppRegistryEntry[] = [
     defaultHeight: 480,
     isSystemEssential: false,
     description: 'Pruebas de rendimiento y benchmarks de CPU/memoria.',
-    developer: 'antorlok Labs',
+    developer: 'VueOS Core Team',
     size: '30 MB'
+  },
+  {
+    id: 'kolourpaint',
+    name: 'KolourPaintApp',
+    title: 'KolourPaint',
+    icon: Palette,
+    defaultWidth: 900,
+    defaultHeight: 620,
+    isSystemEssential: false,
+    description: 'Aplicación de dibujo táctil y retoque de imágenes de KDE Plasma.',
+    developer: 'VueOS Core Team',
+    size: '14 MB'
+  },
+  {
+    id: 'kweather',
+    name: 'KWeatherApp',
+    title: 'KWeather',
+    icon: CloudSun,
+    defaultWidth: 850,
+    defaultHeight: 580,
+    isSystemEssential: false,
+    description: 'Pronóstico del clima con simulaciones y telemetría de KDE Plasma.',
+    developer: 'VueOS Core Team',
+    size: '18 MB'
+  },
+  {
+    id: 'kmarkdown',
+    name: 'KMarkdownApp',
+    title: 'KMarkdown',
+    icon: BookOpen,
+    defaultWidth: 950,
+    defaultHeight: 600,
+    isSystemEssential: false,
+    description: 'Editor de Markdown interactivo (estilo Obsidian) con Live Preview en tiempo real.',
+    developer: 'VueOS Core Team',
+    size: '15 MB'
   }
 ];

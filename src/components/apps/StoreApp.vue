@@ -35,14 +35,30 @@
       <!-- PESTAÑA: EXPLORAR -->
       <div v-if="activeTab === 'explore'" class="tab-content explore-tab">
         <div class="header-section">
-          <h2 class="section-title">Descubrir Aplicaciones</h2>
-          <p class="section-sub">Potencia tu entorno VueOS con las mejores herramientas cibernéticas de la red.</p>
+          <div class="store-header-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 20px; flex-wrap: wrap;">
+            <div>
+              <h2 class="section-title">Descubrir Aplicaciones</h2>
+              <p class="section-sub">Potencia tu entorno VueOS con las mejores herramientas del sistema.</p>
+            </div>
+            
+            <!-- BUSCADOR DE APPS (KDE DISCOVER STYLE) -->
+            <div class="store-search-box">
+              <SearchIcon class="store-search-icon" />
+              <input
+                v-model="searchQuery"
+                type="text"
+                class="store-search-input"
+                placeholder="Buscar aplicaciones..."
+                spellcheck="false"
+              />
+            </div>
+          </div>
         </div>
 
         <div class="apps-grid">
           <!-- Tarjeta de App Disponible -->
           <div
-            v-for="app in storeStore.availableApps"
+            v-for="app in filteredAvailableApps"
             :key="app.id"
             class="app-store-card"
           >
@@ -90,10 +106,10 @@
           </div>
 
           <!-- Estado vacío -->
-          <div v-if="storeStore.availableApps.length === 0" class="store-empty-state">
+          <div v-if="filteredAvailableApps.length === 0" class="store-empty-state">
             <CompassIcon class="empty-icon" />
-            <h4 class="empty-title">¡Estás al día!</h4>
-            <p class="empty-desc">Todas las aplicaciones del catálogo de Discover ya están instaladas en tu sistema.</p>
+            <h4 class="empty-title">Sin resultados</h4>
+            <p class="empty-desc">No se encontraron aplicaciones disponibles con ese filtro de búsqueda.</p>
           </div>
         </div>
       </div>
@@ -101,13 +117,29 @@
       <!-- PESTAÑA: ADMINISTRAR / INSTALADAS -->
       <div v-else-if="activeTab === 'manage'" class="tab-content manage-tab">
         <div class="header-section">
-          <h2 class="section-title">Aplicaciones Instaladas</h2>
-          <p class="section-sub">Administra y desinstala tus paquetes virtuales de terceros en VueOS.</p>
+          <div class="store-header-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 20px; flex-wrap: wrap;">
+            <div>
+              <h2 class="section-title">Aplicaciones Instaladas</h2>
+              <p class="section-sub">Administra y desinstala tus paquetes virtuales en VueOS.</p>
+            </div>
+            
+            <!-- BUSCADOR DE INSTALADAS -->
+            <div class="store-search-box">
+              <SearchIcon class="store-search-icon" />
+              <input
+                v-model="searchQuery"
+                type="text"
+                class="store-search-input"
+                placeholder="Buscar instaladas..."
+                spellcheck="false"
+              />
+            </div>
+          </div>
         </div>
 
         <div class="installed-list">
           <div
-            v-for="app in storeStore.installedStoreApps"
+            v-for="app in filteredInstalledApps"
             :key="app.id"
             class="installed-list-item"
           >
@@ -133,10 +165,10 @@
           </div>
 
           <!-- Estado vacío de instaladas -->
-          <div v-if="storeStore.installedStoreApps.length === 0" class="store-empty-state">
+          <div v-if="filteredInstalledApps.length === 0" class="store-empty-state">
             <PackageIcon class="empty-icon" />
-            <h4 class="empty-title">Sin aplicaciones añadidas</h4>
-            <p class="empty-desc">No has instalado ninguna aplicación de terceros aún. Explora la tienda para comenzar.</p>
+            <h4 class="empty-title">Sin aplicaciones</h4>
+            <p class="empty-desc">No se encontraron aplicaciones instaladas con el filtro seleccionado.</p>
           </div>
         </div>
       </div>
@@ -145,18 +177,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useStoreStore } from '@/stores/storeStore';
 import {
   ShoppingBag as ShoppingBagIcon,
   Compass as CompassIcon,
   Package as PackageIcon,
   Download as DownloadIcon,
-  Trash2 as TrashIcon
+  Trash2 as TrashIcon,
+  Search as SearchIcon
 } from 'lucide-vue-next';
 
 const storeStore = useStoreStore();
 const activeTab = ref<'explore' | 'manage'>('explore');
+const searchQuery = ref('');
+
+// Filtrar las apps en base a la búsqueda en tiempo real
+const filteredAvailableApps = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return storeStore.availableApps;
+  return storeStore.availableApps.filter(app => 
+    app.title.toLowerCase().includes(query) || 
+    app.description.toLowerCase().includes(query)
+  );
+});
+
+const filteredInstalledApps = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return storeStore.installedStoreApps;
+  return storeStore.installedStoreApps.filter(app => 
+    app.title.toLowerCase().includes(query) || 
+    app.description.toLowerCase().includes(query)
+  );
+});
 
 // Rastreo de progreso de descarga por App ID
 const downloadProgress = reactive<Record<string, number>>({});
@@ -219,8 +272,8 @@ function simulateInstallation(appId: string) {
 .brand-icon {
   width: 24px;
   height: 24px;
-  color: var(--neon-magenta);
-  filter: drop-shadow(var(--glow-magenta));
+  color: var(--accent);
+  filter: drop-shadow(0 0 8px rgba(61, 174, 233, 0.3));
 }
 
 .brand-title {
@@ -260,10 +313,10 @@ function simulateInstallation(appId: string) {
 }
 
 .store-nav-item-active {
-  background: rgba(217, 70, 239, 0.1) !important;
-  color: var(--neon-magenta) !important;
+  background: rgba(61, 174, 233, 0.1) !important;
+  color: var(--accent) !important;
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--neon-magenta);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .nav-icon {
@@ -327,8 +380,8 @@ function simulateInstallation(appId: string) {
 }
 
 .app-store-card:hover {
-  border-color: rgba(217, 70, 239, 0.35);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(217, 70, 239, 0.05);
+  border-color: rgba(61, 174, 233, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(61, 174, 233, 0.05);
   transform: translateY(-4px);
 }
 
@@ -348,7 +401,7 @@ function simulateInstallation(appId: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--neon-magenta);
+  color: var(--accent);
 }
 
 .store-app-icon {
@@ -361,7 +414,7 @@ function simulateInstallation(appId: string) {
   position: absolute;
   inset: -1px;
   border-radius: 12px;
-  background: radial-gradient(circle, var(--neon-magenta) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
   opacity: 0.15;
   z-index: 1;
 }
@@ -416,10 +469,10 @@ function simulateInstallation(appId: string) {
   gap: 8px;
   width: 100%;
   padding: 10px;
-  background: rgba(217, 70, 239, 0.08);
-  border: 1px solid rgba(217, 70, 239, 0.3);
+  background: rgba(61, 174, 233, 0.08);
+  border: 1px solid rgba(61, 174, 233, 0.3);
   border-radius: 8px;
-  color: var(--neon-magenta);
+  color: var(--accent);
   font-family: inherit;
   font-size: 0.8rem;
   font-weight: bold;
@@ -428,9 +481,9 @@ function simulateInstallation(appId: string) {
 }
 
 .install-btn:hover {
-  background: var(--neon-magenta);
+  background: var(--accent);
   color: #ffffff;
-  box-shadow: var(--glow-magenta);
+  box-shadow: 0 0 10px rgba(61, 174, 233, 0.4);
 }
 
 .action-icon {
@@ -457,8 +510,8 @@ function simulateInstallation(appId: string) {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(to right, var(--neon-magenta), var(--neon-cyan));
-  box-shadow: var(--glow-magenta);
+  background: linear-gradient(to right, var(--accent), var(--neon-cyan));
+  box-shadow: 0 0 8px rgba(61, 174, 233, 0.4);
   transition: width 0.1s linear;
 }
 
@@ -474,7 +527,7 @@ function simulateInstallation(appId: string) {
 }
 
 .status-pct {
-  color: var(--neon-magenta);
+  color: var(--accent);
   font-family: monospace;
 }
 
@@ -516,7 +569,7 @@ function simulateInstallation(appId: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--neon-magenta);
+  color: var(--accent);
 }
 
 .installed-app-icon {
@@ -597,5 +650,38 @@ function simulateInstallation(appId: string) {
   color: var(--text-secondary);
   max-width: 320px;
   line-height: 1.4;
+}
+/* BUSCADOR DE DISCOVER */
+.store-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  width: 260px;
+  transition: all var(--transition-fast);
+}
+
+.store-search-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(61, 174, 233, 0.25);
+}
+
+.store-search-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--text-disabled);
+}
+
+.store-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
 }
 </style>

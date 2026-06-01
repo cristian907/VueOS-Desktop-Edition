@@ -28,6 +28,7 @@ function createWindow(): void {
     height: 720,
     frame: false,
     transparent: true,
+    fullscreen: true,
     webPreferences: {
       webviewTag: true, // Requerido para incrustar el navegador real
       nodeIntegration: false,
@@ -110,28 +111,43 @@ function ensureWorkspaceDirs() {
 ensureWorkspaceDirs();
 
 ipcMain.handle('fs:read-workspace', async () => {
-  const dirs = ['Descargas', 'Documentos', 'Imágenes'];
-  const result: Record<string, { name: string; type: 'file' | 'dir'; size: string; dataUrl?: string; content?: string }[]> = {
-    Descargas: [],
-    Documentos: [],
-    Imágenes: []
-  };
+  const result: Record<string, { name: string; type: 'file' | 'dir'; size: string; dataUrl?: string; content?: string }[]> = {};
 
-  for (const dirName of dirs) {
-    const dirPath = path.join(WORKSPACE_DIR, dirName);
-    if (fs.existsSync(dirPath)) {
-      const files = fs.readdirSync(dirPath);
-      for (const file of files) {
-        const filePath = path.join(dirPath, file);
-        const stats = fs.statSync(filePath);
-        if (stats.isFile()) {
-          const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-          const sizeStr = stats.size > 1024 * 1024 ? `${sizeMB} MB` : `${(stats.size / 1024).toFixed(1)} KB`;
-          
-          let dataUrl = '';
-          let content = '';
+  function scan(dirPath: string, keyName: string) {
+    result[keyName] = [];
+    if (!fs.existsSync(dirPath)) return;
 
-          const ext = path.extname(file).toLowerCase();
+    const files = fs.readdirSync(dirPath);
+    for (const file of files) {
+      if (file.startsWith('.')) {
+        continue;
+      }
+
+      const filePath = path.join(dirPath, file);
+      let stats;
+      try {
+        stats = fs.statSync(filePath);
+      } catch (e) {
+        continue;
+      }
+
+      if (stats.isDirectory()) {
+        result[keyName].push({
+          name: file,
+          type: 'dir',
+          size: ''
+        });
+        const nextKey = keyName === 'Inicio' ? file : `${keyName}/${file}`;
+        scan(filePath, nextKey);
+      } else if (stats.isFile()) {
+        const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+        const sizeStr = stats.size > 1024 * 1024 ? `${sizeMB} MB` : `${(stats.size / 1024).toFixed(1)} KB`;
+        
+        let dataUrl = '';
+        let content = '';
+        const ext = path.extname(file).toLowerCase();
+        
+        try {
           if (['.jpg', '.jpeg', '.png', '.webp', '.gif', '.mp4', '.webm', '.mp3'].includes(ext)) {
             const fileData = fs.readFileSync(filePath);
             let mimeType = 'image/jpeg';
@@ -143,19 +159,52 @@ ipcMain.handle('fs:read-workspace', async () => {
           } else {
             content = fs.readFileSync(filePath, 'utf-8');
           }
-
-          result[dirName].push({
-            name: file,
-            type: 'file',
-            size: sizeStr,
-            dataUrl,
-            content
-          });
+        } catch (e) {
+          console.error('[electron] Error reading file:', filePath, e);
         }
+
+        result[keyName].push({
+          name: file,
+          type: 'file',
+          size: sizeStr,
+          dataUrl,
+          content
+        });
       }
     }
   }
+
+  scan(WORKSPACE_DIR, 'Inicio');
   return result;
+});
+
+ipcMain.handle('fs:write-file', async (_event, folder: string, filename: string, data: { content?: string; dataUrl?: string }) => {
+  const dirPath = path.join(WORKSPACE_DIR, folder);
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+
+  if (!filename) {
+    return;
+  }
+
+  const filePath = path.join(dirPath, filename);
+  if (data.dataUrl) {
+    if (data.dataUrl.startsWith('http://') || data.dataUrl.startsWith('https://')) {
+      try {
+        await downloadFile(data.dataUrl, filePath);
+      } catch (err) {
+        console.error('[electron] Error downloading remote file:', err);
+      }
+    } else {
+      const base64Data = data.dataUrl.split(';base64,').pop();
+      if (base64Data) {
+        fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+      }
+    }
+  } else if (data.content !== undefined) {
+    fs.writeFileSync(filePath, data.content, 'utf-8');
+  }
 });
 
 // ---- Utilidades de Descarga ----
@@ -273,35 +322,19 @@ function downloadFile(url: string, destPath: string, maxRedirects = 10): Promise
   });
 }
 
-ipcMain.handle('fs:write-file', async (_event, folder: string, filename: string, data: { content?: string; dataUrl?: string }) => {
-  const dirPath = path.join(WORKSPACE_DIR, folder);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-
-  const filePath = path.join(dirPath, filename);
-  if (data.dataUrl) {
-    if (data.dataUrl.startsWith('http://') || data.dataUrl.startsWith('https://')) {
-      try {
-        await downloadFile(data.dataUrl, filePath);
-      } catch (err) {
-        console.error('[electron] Error downloading remote file:', err);
-      }
-    } else {
-      const base64Data = data.dataUrl.split(';base64,').pop();
-      if (base64Data) {
-        fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-      }
-    }
-  } else if (data.content !== undefined) {
-    fs.writeFileSync(filePath, data.content, 'utf-8');
-  }
-});
-
 ipcMain.handle('fs:delete-file', async (_event, folder: string, filename: string) => {
   const filePath = path.join(WORKSPACE_DIR, folder, filename);
   if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
+    try {
+      const stats = fs.statSync(filePath);
+      if (stats.isDirectory()) {
+        fs.rmSync(filePath, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(filePath);
+      }
+    } catch (err) {
+      console.error('[electron] Error deleting file/folder:', err);
+    }
   }
 });
 

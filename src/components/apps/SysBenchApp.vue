@@ -1,145 +1,311 @@
 <template>
   <div class="bench-container">
-    <div class="bench-card">
-      <h3 class="bench-title">SysBench v3.0</h3>
-      <p class="bench-desc">Mide el rendimiento máximo simulado de tu núcleo VueOS.</p>
+    <!-- BARRA SUPERIOR DE PESTAÑAS (KDE BREEZE STYLE) -->
+    <header class="bench-header">
+      <div class="bench-tabs">
+        <button
+          type="button"
+          class="bench-tab"
+          :class="{ active: activeTab === 'cpu' }"
+          @click="activeTab = 'cpu'"
+          :disabled="isTesting"
+        >
+          <CpuIcon class="tab-icon" />
+          <span>Prueba de CPU</span>
+        </button>
+        <button
+          type="button"
+          class="bench-tab"
+          :class="{ active: activeTab === 'disk' }"
+          @click="activeTab = 'disk'"
+          :disabled="isTesting"
+        >
+          <HardDriveIcon class="tab-icon" />
+          <span>Benchmark de Disco</span>
+        </button>
+      </div>
+      <span class="system-tag">KDE SysBench v4.0</span>
+    </header>
 
-      <!-- MEDIDOR GAUGE RADIAL (SVG) -->
-      <div class="gauge-area">
-        <svg class="gauge-svg" viewBox="0 0 200 200">
-          <!-- Círculo de fondo -->
-          <circle
-            cx="100"
-            cy="100"
-            r="80"
-            fill="none"
-            stroke="rgba(255, 255, 255, 0.05)"
-            stroke-width="12"
-          />
-          <!-- Círculo de relleno animado -->
-          <circle
-            cx="100"
-            cy="100"
-            r="80"
-            fill="none"
-            :stroke="gaugeColor"
-            stroke-width="12"
-            stroke-dasharray="502"
-            :stroke-dashoffset="dashOffset"
-            stroke-linecap="round"
-            class="gauge-circle-fill"
-          />
-        </svg>
-        <div class="gauge-text" :class="{ 'vibrating': isTesting }">
-          <span class="gauge-value">{{ Math.round(cpuStress) }}%</span>
-          <span class="gauge-lbl">Estrés CPU</span>
+    <div class="bench-body">
+      <!-- SECCIÓN: PRUEBA DE CPU -->
+      <div v-if="activeTab === 'cpu'" class="tab-pane">
+        <div class="pane-meta">
+          <h3>Rendimiento y Cálculo de CPU</h3>
+          <p>Mide el rendimiento máximo simulado en operaciones de punto flotante por segundo (GFLOPS) y estrés del núcleo.</p>
         </div>
+
+        <div class="progress-section">
+          <div class="progress-header">
+            <span>Estrés del Procesador</span>
+            <span class="progress-val">{{ Math.round(cpuStress) }}%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" :style="{ width: `${cpuStress}%` }"></div>
+          </div>
+          <div class="speed-indicator" v-if="isTesting">
+            Velocidad de procesamiento: <span class="highlight">{{ (cpuStress * 1.8 + 20).toFixed(1) }} GFLOPS</span>
+          </div>
+        </div>
+
+        <!-- Métrica de especificaciones -->
+        <div class="stats-table">
+          <div class="table-row">
+            <span class="lbl">Hilos de cálculo activo:</span>
+            <span class="val">{{ isTesting ? '16 Hilos (Máximo)' : '0 Hilos (Reposo)' }}</span>
+          </div>
+          <div class="table-row">
+            <span class="lbl">Estado térmico de CPU:</span>
+            <span class="val" :class="{ 'warning-text': cpuStress > 80 }">
+              {{ isTesting ? Math.round(45 + (cpuStress * 0.45)) : '38' }}°C
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="breeze-btn btn-primary"
+          :class="{ active: isTesting }"
+          :disabled="isTesting"
+          @click="runCpuBenchmark"
+        >
+          <PlayIcon class="btn-icon" :class="{ spinning: isTesting }" />
+          <span>{{ isTesting ? 'Ejecutando Estrés CPU...' : 'Comenzar Pruebas de CPU' }}</span>
+        </button>
       </div>
 
-      <!-- BOTÓN DE INICIO DE TEST -->
-      <button
-        type="button"
-        class="test-btn"
-        :class="{ 'test-btn-active': isTesting }"
-        :disabled="isTesting"
-        @click="runBenchmark"
-      >
-        <component :is="isTesting ? ZapIcon : PlayIcon" class="btn-icon" :class="{ 'spinning': isTesting }" />
-        <span>{{ isTesting ? 'Ejecutando Estrés...' : 'Comenzar Pruebas' }}</span>
-      </button>
-
-      <!-- TERMINAL DE REGISTRO / LOGS -->
-      <div class="log-terminal">
-        <div v-for="(log, idx) in logs" :key="idx" class="log-line">
-          <span class="log-timestamp">> </span>
-          <span :class="log.type">{{ log.text }}</span>
+      <!-- SECCIÓN: BENCHMARK DE DISCO -->
+      <div v-else-if="activeTab === 'disk'" class="tab-pane">
+        <div class="pane-meta">
+          <h3>Benchmark de Disco NVMe</h3>
+          <p>Simula pruebas secuenciales y aleatorias 4K en tu SSD para medir la velocidad física de lectura y escritura.</p>
         </div>
+
+        <!-- Resultados del Benchmark de Disco -->
+        <div class="disk-results">
+          <div class="disk-test-row">
+            <div class="test-label">
+              <span class="title">Lectura Secuencial (SEQ1M Q8T1)</span>
+              <span class="desc">Velocidad máxima de transferencia de archivos grandes</span>
+            </div>
+            <div class="test-value" :class="{ active: activeDiskPhase === 'seqRead' || diskResults.seqRead > 0 }">
+              {{ diskResults.seqRead > 0 ? `${diskResults.seqRead.toLocaleString()} MB/s` : (activeDiskPhase === 'seqRead' ? `${tempSpeed} MB/s` : '--') }}
+            </div>
+          </div>
+
+          <div class="disk-test-row">
+            <div class="test-label">
+              <span class="title">Escritura Secuencial (SEQ1M Q8T1)</span>
+              <span class="desc">Velocidad máxima de escritura de archivos grandes</span>
+            </div>
+            <div class="test-value" :class="{ active: activeDiskPhase === 'seqWrite' || diskResults.seqWrite > 0 }">
+              {{ diskResults.seqWrite > 0 ? `${diskResults.seqWrite.toLocaleString()} MB/s` : (activeDiskPhase === 'seqWrite' ? `${tempSpeed} MB/s` : '--') }}
+            </div>
+          </div>
+
+          <div class="disk-test-row">
+            <div class="test-label">
+              <span class="title">Lectura Aleatoria (RND4K Q32T1)</span>
+              <span class="desc">Lectura de bloques pequeños (IOPS de base de datos)</span>
+            </div>
+            <div class="test-value" :class="{ active: activeDiskPhase === 'rndRead' || diskResults.rndRead > 0 }">
+              {{ diskResults.rndRead > 0 ? `${diskResults.rndRead.toLocaleString()} IOPS` : (activeDiskPhase === 'rndRead' ? `${Math.round(tempSpeed * 12)} IOPS` : '--') }}
+            </div>
+          </div>
+
+          <div class="disk-test-row">
+            <div class="test-label">
+              <span class="title">Escritura Aleatoria (RND4K Q32T1)</span>
+              <span class="desc">Escritura de bloques pequeños (IOPS de base de datos)</span>
+            </div>
+            <div class="test-value" :class="{ active: activeDiskPhase === 'rndWrite' || diskResults.rndWrite > 0 }">
+              {{ diskResults.rndWrite > 0 ? `${diskResults.rndWrite.toLocaleString()} IOPS` : (activeDiskPhase === 'rndWrite' ? `${Math.round(tempSpeed * 10)} IOPS` : '--') }}
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="breeze-btn btn-primary"
+          :class="{ active: isTesting }"
+          :disabled="isTesting"
+          @click="runDiskBenchmark"
+        >
+          <PlayIcon class="btn-icon" :class="{ spinning: isTesting }" />
+          <span>{{ isTesting ? 'Ejecutando Pruebas de Disco...' : 'Comenzar Pruebas de Disco' }}</span>
+        </button>
       </div>
+
+      <!-- TERMINAL DE REGISTROS (KONSOLE COMPACTA) -->
+      <footer class="konsole-logs">
+        <div class="logs-header">
+          <TerminalIcon class="logs-icon" />
+          <span>Salida de Registro (SysBench Kern)</span>
+        </div>
+        <div class="logs-body" ref="logsBodyRef">
+          <div v-for="(log, idx) in logs" :key="idx" class="log-line">
+            <span class="prompt">></span>
+            <span class="log-text" :class="log.type">{{ log.text }}</span>
+          </div>
+        </div>
+      </footer>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue';
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue';
 import { useOSStore } from '@/stores/osStore';
-import { Play as PlayIcon, Zap as ZapIcon } from 'lucide-vue-next';
+import {
+  Cpu as CpuIcon,
+  HardDrive as HardDriveIcon,
+  Play as PlayIcon,
+  Terminal as TerminalIcon
+} from 'lucide-vue-next';
 
 const osStore = useOSStore();
 
+// --- STATE ---
+const activeTab = ref<'cpu' | 'disk'>('cpu');
 const isTesting = ref(false);
 const cpuStress = ref(0);
+const logsBodyRef = ref<HTMLElement | null>(null);
+
+// Logs
+const logs = ref<{ text: string; type: string }[]>([
+  { text: 'KDE SysBench inicializado. Esperando comandos del operador...', type: 'info' }
+]);
+
+// Disk Results
+const diskResults = ref({
+  seqRead: 0,
+  seqWrite: 0,
+  rndRead: 0,
+  rndWrite: 0
+});
+const activeDiskPhase = ref<'seqRead' | 'seqWrite' | 'rndRead' | 'rndWrite' | null>(null);
+const tempSpeed = ref(0); // velocidad temporal en tiempo real
 
 watch(cpuStress, (newVal) => {
   osStore.cpuStressBenchmark = newVal;
 });
-const logs = ref<{ text: string; type: string }[]>([
-  { text: 'SysBench inicializado. Esperando órdenes...', type: 'info' }
-]);
 
-// Círculo tiene un radio de 80, su perímetro es 2 * PI * 80 ≈ 502
-const dashOffset = computed(() => {
-  const pct = cpuStress.value / 100;
-  return 502 - pct * 502;
-});
-
-const gaugeColor = computed(() => {
-  if (cpuStress.value > 85) return 'var(--neon-magenta)';
-  if (cpuStress.value > 50) return 'var(--neon-cyan)';
-  return 'var(--neon-green)';
-});
+// --- METHODS ---
+function addLog(text: string, type: 'info' | 'warning' | 'success' = 'info') {
+  logs.value.push({ text, type });
+  nextTick(() => {
+    if (logsBodyRef.value) {
+      logsBodyRef.value.scrollTop = logsBodyRef.value.scrollHeight;
+    }
+  });
+}
 
 let testTimer: any = null;
 let stressTimer: any = null;
 
-function runBenchmark() {
+// --- CPU STRESS TEST ---
+function runCpuBenchmark() {
   if (isTesting.value) return;
 
   isTesting.value = true;
   cpuStress.value = 10;
   logs.value = [];
   
-  addLog('Iniciando batería de pruebas VueOS Benchmarks...', 'info');
+  addLog('Iniciando batería de pruebas CPU VueOS Benchmarks...', 'info');
 
-  // Secuencia de logs y estrés simulado
   let step = 0;
   testTimer = setInterval(() => {
     step++;
     if (step === 1) {
-      addLog('Creando 10,000 hilos simulados de estrés de cálculo de primos...', 'info');
+      addLog('Generando subprocesos del kernel para cálculo de números primos...', 'info');
       cpuStress.value = 45;
     } else if (step === 2) {
-      addLog('Estresando la memoria RAM y caché virtual de IndexedDB...', 'info');
-      cpuStress.value = 78;
+      addLog('Comprobando estabilidad bajo cálculo en punto flotante (16 hilos)...', 'info');
+      cpuStress.value = 85;
     } else if (step === 3) {
-      addLog('[Peligro] Temperatura del procesador elevada a 89°C. Carga al 99.8%. Estresando el kernel...', 'warning');
-      cpuStress.value = 99.8;
+      addLog('[Alerta] Carga del procesador al 98.6%. Verificando estrangulamiento térmico...', 'warning');
+      cpuStress.value = 98.6;
       
-      // Vibración de estrés
+      // Simular ligeras oscilaciones
       stressTimer = setInterval(() => {
-        cpuStress.value = 98 + Math.random() * 2;
-      }, 80);
+        cpuStress.value = 97 + Math.random() * 2.8;
+      }, 100);
     } else if (step === 5) {
       clearInterval(stressTimer);
-      addLog('Finalizando pruebas de estrés. Enfriando procesador...', 'info');
-      cpuStress.value = 30;
+      addLog('Enfriando procesador y recolectando datos de telemetría...', 'info');
+      cpuStress.value = 25;
     } else if (step === 6) {
       clearInterval(testTimer);
       isTesting.value = false;
       cpuStress.value = 0;
       
-      const score = Math.floor(35000 + Math.random() * 10000);
-      addLog(`¡Prueba Completada Exitosamente!`, 'success');
-      addLog(`Puntuación final: ${score.toLocaleString()} VUE-POINTS`, 'success-glow');
+      const score = Math.floor(38000 + Math.random() * 8000);
+      addLog('¡Prueba de CPU finalizada con éxito!', 'success');
+      addLog(`Puntuación final: ${score.toLocaleString()} GFLOPS-Index (Estable)`, 'success');
     }
   }, 1000);
 }
 
-function addLog(text: string, type: string) {
-  logs.value.push({ text, type });
-  // Mantener solo los últimos 5 logs en pantalla para el terminal compacto
-  if (logs.value.length > 5) {
-    logs.value.shift();
-  }
+// --- DISK SPEED BENCHMARK ---
+function runDiskBenchmark() {
+  if (isTesting.value) return;
+
+  isTesting.value = true;
+  diskResults.value = { seqRead: 0, seqWrite: 0, rndRead: 0, rndWrite: 0 };
+  logs.value = [];
+  
+  addLog('Iniciando pruebas de transferencia en Disco NVMe...', 'info');
+
+  let step = 0;
+  activeDiskPhase.value = 'seqRead';
+  
+  // Temporizador para simular velocidad en tiempo real
+  stressTimer = setInterval(() => {
+    if (activeDiskPhase.value === 'seqRead') {
+      tempSpeed.value = Math.round(4200 + Math.random() * 800);
+    } else if (activeDiskPhase.value === 'seqWrite') {
+      tempSpeed.value = Math.round(3000 + Math.random() * 600);
+    } else if (activeDiskPhase.value === 'rndRead') {
+      tempSpeed.value = Math.round(35000 + Math.random() * 5000);
+    } else if (activeDiskPhase.value === 'rndWrite') {
+      tempSpeed.value = Math.round(32000 + Math.random() * 4000);
+    }
+  }, 80);
+
+  testTimer = setInterval(() => {
+    step++;
+    if (step === 1) {
+      addLog('Fase 1: Ejecutando lectura secuencial (tamaño bloque: 1MB)...', 'info');
+    } else if (step === 2) {
+      diskResults.value.seqRead = tempSpeed.value;
+      addLog(`✓ Lectura Secuencial: ${diskResults.value.seqRead} MB/s (Completado)`, 'success');
+      activeDiskPhase.value = 'seqWrite';
+    } else if (step === 3) {
+      addLog('Fase 2: Ejecutando escritura secuencial (tamaño bloque: 1MB)...', 'info');
+    } else if (step === 4) {
+      diskResults.value.seqWrite = tempSpeed.value;
+      addLog(`✓ Escritura Secuencial: ${diskResults.value.seqWrite} MB/s (Completado)`, 'success');
+      activeDiskPhase.value = 'rndRead';
+    } else if (step === 5) {
+      addLog('Fase 3: Ejecutando lectura aleatoria 4K de alta concurrencia...', 'info');
+    } else if (step === 6) {
+      diskResults.value.rndRead = Math.round(tempSpeed.value * 12);
+      addLog(`✓ Lectura Aleatoria 4K: ${diskResults.value.rndRead.toLocaleString()} IOPS (Completado)`, 'success');
+      activeDiskPhase.value = 'rndWrite';
+    } else if (step === 7) {
+      addLog('Fase 4: Ejecutando escritura aleatoria 4K de alta concurrencia...', 'info');
+    } else if (step === 8) {
+      diskResults.value.rndWrite = Math.round(tempSpeed.value * 10);
+      addLog(`✓ Escritura Aleatoria 4K: ${diskResults.value.rndWrite.toLocaleString()} IOPS (Completado)`, 'success');
+      
+      // Finalizar
+      clearInterval(testTimer);
+      clearInterval(stressTimer);
+      activeDiskPhase.value = null;
+      isTesting.value = false;
+      addLog('¡Batería de pruebas de disco finalizada con éxito!', 'success');
+    }
+  }, 1200);
 }
 
 onUnmounted(() => {
@@ -152,136 +318,228 @@ onUnmounted(() => {
 <style scoped>
 .bench-container {
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
   width: 100%;
   height: 100%;
-  background: #08080c;
-  padding: 20px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-family-base), sans-serif;
+  overflow: hidden;
+  user-select: none;
 }
 
-.bench-card {
-  width: 100%;
-  max-width: 380px;
-  background: rgba(15, 23, 42, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 20px;
-  padding: 24px;
+/* BARRA SUPERIOR DE PESTAÑAS */
+.bench-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  backdrop-filter: blur(16px);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+  height: 48px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 16px;
+  flex-shrink: 0;
 }
 
-.bench-title {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 1px;
+.bench-tabs {
+  display: flex;
+  gap: 4px;
 }
 
-.bench-desc {
-  font-size: 0.75rem;
+.bench-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  text-align: center;
-  line-height: 1.4;
-  margin-top: -8px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
 }
 
-/* MEDIDOR GAUGE */
-.gauge-area {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.bench-tab:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
-.gauge-svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
+.bench-tab.active {
+  background: var(--bg-active) !important;
+  color: var(--accent) !important;
+  border-bottom: 2px solid var(--accent);
 }
 
-.gauge-circle-fill {
-  transition: stroke-dashoffset 0.3s ease, stroke 0.5s ease;
-  filter: drop-shadow(0 0 4px v-bind(gaugeColor));
+.bench-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.gauge-text {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+.tab-icon {
+  width: 14px;
+  height: 14px;
 }
 
-.gauge-value {
-  font-size: 1.8rem;
-  font-weight: 900;
-  color: #ffffff;
-  font-family: monospace;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-}
-
-.gauge-lbl {
-  font-size: 0.65rem;
+.system-tag {
+  font-size: 0.7rem;
+  color: var(--text-disabled);
   font-weight: bold;
-  color: var(--text-secondary);
-  text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.vibrating {
-  animation: shake 0.1s infinite;
+/* CUERPO DEL BENCHMARK */
+.bench-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  gap: 20px;
+  overflow-y: auto;
 }
 
-@keyframes shake {
-  0% { transform: translate(1px, 1px) rotate(0deg); }
-  25% { transform: translate(-1px, -1px) rotate(-1deg); }
-  50% { transform: translate(-1px, 1px) rotate(0deg); }
-  75% { transform: translate(1px, -1px) rotate(1deg); }
-  100% { transform: translate(1px, 1px) rotate(0deg); }
+.tab-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-/* BOTÓN DE ACCIÓN */
-.test-btn {
+.pane-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pane-meta h3 {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.pane-meta p {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+/* ESTILOS DE ESTRÉS CPU (BARRAS LINEALES) */
+.progress-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.progress-val {
+  color: var(--accent);
+  font-family: monospace;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 10px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.15s ease;
+}
+
+.speed-indicator {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.highlight {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+/* Tablas de métricas serias */
+.stats-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.table-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--bg-secondary);
+  font-size: 0.78rem;
+}
+
+.table-row:not(:last-child) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table-row .lbl {
+  color: var(--text-secondary);
+}
+
+.table-row .val {
+  font-weight: bold;
+}
+
+.warning-text {
+  color: var(--danger) !important;
+}
+
+/* BOTONES BREEZE */
+.breeze-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   width: 100%;
   padding: 12px;
-  background: rgba(0, 243, 255, 0.08);
-  border: 1px solid rgba(0, 243, 255, 0.25);
-  border-radius: 10px;
-  color: var(--neon-cyan);
+  border-radius: var(--radius-md);
   font-family: inherit;
+  font-size: 0.8rem;
   font-weight: bold;
-  font-size: 0.82rem;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all var(--transition-fast) ease;
 }
 
-.test-btn:hover:not(:disabled) {
-  background: var(--neon-cyan);
-  color: #000000;
-  box-shadow: var(--glow-cyan);
+.btn-primary {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #ffffff;
 }
 
-.test-btn-active {
-  background: rgba(255, 0, 255, 0.08) !important;
-  border-color: rgba(255, 0, 255, 0.25) !important;
-  color: var(--neon-magenta) !important;
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .btn-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .spinning {
@@ -293,46 +551,114 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
-/* TERMINAL DE LOGS */
-.log-terminal {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  padding: 12px;
-  height: 110px;
-  overflow: hidden;
+/* BENCHMARK DE DISCO GRIDS */
+.disk-results {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  gap: 8px;
+}
+
+.disk-test-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-fast);
+}
+
+.disk-test-row:hover {
+  border-color: var(--border-hover);
+}
+
+.test-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.test-label .title {
+  font-size: 0.82rem;
+  font-weight: bold;
+}
+
+.test-label .desc {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.test-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-family: monospace;
+  color: var(--text-disabled);
+}
+
+.test-value.active {
+  color: var(--accent);
+}
+
+/* TERMINAL DE REGISTROS DE SYSBENCH */
+.konsole-logs {
+  background: #141618;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.logs-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-titlebar);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.72rem;
+  font-weight: bold;
+}
+
+.logs-icon {
+  width: 12px;
+  height: 12px;
+  color: var(--accent);
+}
+
+.logs-body {
+  flex: 1;
+  padding: 10px 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.68rem;
+  scrollbar-width: thin;
 }
 
 .log-line {
-  font-size: 0.68rem;
-  line-height: 1.4;
-  font-family: monospace;
+  display: flex;
+  gap: 8px;
 }
 
-.log-timestamp {
-  color: var(--neon-cyan);
+.log-line .prompt {
+  color: var(--accent);
 }
 
-.info {
-  color: rgba(255, 255, 255, 0.7);
+.log-text.info {
+  color: rgba(255, 255, 255, 0.75);
 }
 
-.warning {
-  color: #f59e0b; /* Naranja advertencia */
+.log-text.warning {
+  color: var(--warning);
 }
 
-.success {
-  color: var(--neon-green);
-}
-
-.success-glow {
-  color: var(--neon-magenta);
-  font-weight: bold;
-  text-shadow: var(--glow-magenta);
+.log-text.success {
+  color: var(--success);
 }
 </style>

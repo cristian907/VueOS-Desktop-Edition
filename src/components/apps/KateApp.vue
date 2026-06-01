@@ -1,7 +1,7 @@
 <template>
   <div class="editor-container">
     <!-- BARRA LATERAL DE ARCHIVOS (ESTILO SERIO KDE PLASMA BREEZE) -->
-    <aside class="editor-sidebar">
+    <aside class="editor-sidebar" @contextmenu.prevent="handleEmptyAreaContextMenu">
       <div class="sidebar-title">
         <FolderIcon class="sidebar-title-icon" />
         <span>PROYECTO: workspace</span>
@@ -10,61 +10,91 @@
       <!-- Secciones de carpetas colapsables -->
       <div class="sidebar-sections">
         <!-- DOCUMENTOS -->
-        <div class="folder-section">
-          <button type="button" class="folder-header" @click="categories.Documentos = !categories.Documentos">
-            <span class="folder-chevron">{{ categories.Documentos ? '▼' : '▶' }}</span>
+        <div class="folder-section" @contextmenu.prevent.stop="handleFolderContextMenu($event, 'Documentos')">
+          <button type="button" class="folder-header" @click="toggleFolder('Documentos')">
+            <span class="folder-chevron">{{ openFolders.Documentos ? '▼' : '▶' }}</span>
             <FolderIcon class="folder-icon" />
             <span class="folder-name">Documentos</span>
-            <span class="file-count">({{ documentFiles.length }})</span>
           </button>
           
-          <div v-show="categories.Documentos" class="folder-content">
-            <div v-if="documentFiles.length === 0" class="no-files">Sin archivos de código</div>
-            <button
-              v-for="file in documentFiles"
-              :key="file.name"
-              type="button"
-              class="file-item"
-              :class="{ 'file-item-active': currentFile && currentFile.name === file.name && currentFile.folder === 'Documentos' }"
-              @click="selectFile(file.name, 'Documentos')"
-            >
-              <CodeIcon class="file-icon" :class="detectLanguage(file.name).color" />
-              <span class="file-name-span">{{ file.name }}</span>
-            </button>
+          <div v-show="openFolders.Documentos" class="folder-content">
+            <div v-if="documentTreeNodes.length === 0" class="no-files">Sin archivos de código</div>
+            
+            <template v-for="node in documentTreeNodes" :key="node.path">
+              <!-- Si es una carpeta -->
+              <button
+                v-if="node.type === 'dir'"
+                type="button"
+                class="tree-folder-header"
+                :style="{ paddingLeft: (node.level * 12 + 8) + 'px' }"
+                @click="toggleFolder(node.path)"
+                @contextmenu.prevent.stop="handleFolderContextMenu($event, node.path)"
+              >
+                <span class="folder-chevron">{{ node.isOpen ? '▼' : '▶' }}</span>
+                <FolderIcon class="folder-icon" />
+                <span class="folder-name">{{ node.name }}</span>
+              </button>
+              
+              <!-- Si es un archivo -->
+              <button
+                v-else
+                type="button"
+                class="file-item"
+                :class="{ 'file-item-active': currentFile && currentFile.name === node.name && currentFile.folder === node.parentPath }"
+                :style="{ paddingLeft: (node.level * 12 + 24) + 'px' }"
+                @click="selectFile(node.name, node.parentPath)"
+                @contextmenu.prevent.stop="handleItemContextMenu($event, node.name, node.parentPath)"
+              >
+                <CodeIcon class="file-icon" :class="detectLanguage(node.name).color" />
+                <span class="file-name-span">{{ node.name }}</span>
+              </button>
+            </template>
           </div>
         </div>
 
         <!-- DESCARGAS -->
-        <div class="folder-section">
-          <button type="button" class="folder-header" @click="categories.Descargas = !categories.Descargas">
-            <span class="folder-chevron">{{ categories.Descargas ? '▼' : '▶' }}</span>
+        <div class="folder-section" @contextmenu.prevent.stop="handleFolderContextMenu($event, 'Descargas')">
+          <button type="button" class="folder-header" @click="toggleFolder('Descargas')">
+            <span class="folder-chevron">{{ openFolders.Descargas ? '▼' : '▶' }}</span>
             <FolderIcon class="folder-icon" />
             <span class="folder-name">Descargas</span>
-            <span class="file-count">({{ downloadFiles.length }})</span>
           </button>
           
-          <div v-show="categories.Descargas" class="folder-content">
-            <div v-if="downloadFiles.length === 0" class="no-files">Sin archivos de código</div>
-            <button
-              v-for="file in downloadFiles"
-              :key="file.name"
-              type="button"
-              class="file-item"
-              :class="{ 'file-item-active': currentFile && currentFile.name === file.name && currentFile.folder === 'Descargas' }"
-              @click="selectFile(file.name, 'Descargas')"
-            >
-              <CodeIcon class="file-icon" :class="detectLanguage(file.name).color" />
-              <span class="file-name-span">{{ file.name }}</span>
-            </button>
+          <div v-show="openFolders.Descargas" class="folder-content">
+            <div v-if="downloadTreeNodes.length === 0" class="no-files">Sin archivos de código</div>
+            
+            <template v-for="node in downloadTreeNodes" :key="node.path">
+              <!-- Si es una carpeta -->
+              <button
+                v-if="node.type === 'dir'"
+                type="button"
+                class="tree-folder-header"
+                :style="{ paddingLeft: (node.level * 12 + 8) + 'px' }"
+                @click="toggleFolder(node.path)"
+                @contextmenu.prevent.stop="handleFolderContextMenu($event, node.path)"
+              >
+                <span class="folder-chevron">{{ node.isOpen ? '▼' : '▶' }}</span>
+                <FolderIcon class="folder-icon" />
+                <span class="folder-name">{{ node.name }}</span>
+              </button>
+              
+              <!-- Si es un archivo -->
+              <button
+                v-else
+                type="button"
+                class="file-item"
+                :class="{ 'file-item-active': currentFile && currentFile.name === node.name && currentFile.folder === node.parentPath }"
+                :style="{ paddingLeft: (node.level * 12 + 24) + 'px' }"
+                @click="selectFile(node.name, node.parentPath)"
+                @contextmenu.prevent.stop="handleItemContextMenu($event, node.name, node.parentPath)"
+              >
+                <CodeIcon class="file-icon" :class="detectLanguage(node.name).color" />
+                <span class="file-name-span">{{ node.name }}</span>
+              </button>
+            </template>
           </div>
         </div>
       </div>
-
-      <!-- BOTÓN AGREGAR ARCHIVO -->
-      <button type="button" class="new-file-btn" @click="showNewFileModal = true">
-        <PlusIcon class="btn-icon" />
-        <span>Nuevo Archivo</span>
-      </button>
     </aside>
 
     <!-- VENTANA DEL EDITOR DE CÓDIGO -->
@@ -105,25 +135,52 @@
         </div>
       </div>
 
-      <!-- Cuerpo del Editor -->
-      <div v-if="currentFile" class="editor-body">
-        <!-- Números de Líneas -->
-        <div ref="lineNumbersRef" class="line-numbers" :style="{ fontSize: fontSize + 'px' }">
-          <span v-for="line in lineCount" :key="line">{{ line }}</span>
+      <!-- Espacio de trabajo del Editor y la Terminal integrada -->
+      <div v-if="currentFile" class="editor-workspace">
+        <div class="editor-body">
+          <!-- Números de Líneas -->
+          <div ref="lineNumbersRef" class="line-numbers" :style="{ fontSize: fontSize + 'px' }">
+            <span v-for="line in lineCount" :key="line">{{ line }}</span>
+          </div>
+
+          <!-- Área de Código Editable -->
+          <div class="code-area-container">
+            <textarea
+              ref="textareaRef"
+              class="code-textarea"
+              v-model="editorContent"
+              @scroll="syncScroll"
+              @keydown="handleKeydown"
+              :style="{ fontSize: fontSize + 'px' }"
+              placeholder="// Escribe tu código aquí..."
+              spellcheck="false"
+            ></textarea>
+          </div>
         </div>
 
-        <!-- Área de Código Editable -->
-        <div class="code-area-container">
-          <textarea
-            ref="textareaRef"
-            class="code-textarea"
-            v-model="editorContent"
-            @scroll="syncScroll"
-            @keydown="handleKeydown"
-            :style="{ fontSize: fontSize + 'px' }"
-            placeholder="// Escribe tu código aquí..."
-            spellcheck="false"
-          ></textarea>
+        <!-- CONSOLA INTEGRADA (BREEZE KONSOLE AL FONDO) -->
+        <div v-if="showTerminalPanel" class="breeze-terminal-panel">
+          <div class="terminal-panel-header">
+            <div class="terminal-panel-title">
+              <TerminalIcon class="terminal-panel-title-icon" />
+              <span>Konsole - {{ currentFile?.name }}</span>
+            </div>
+            <div class="terminal-panel-actions">
+              <span class="terminal-panel-status" :class="{ running: terminalRunning }">
+                {{ terminalRunning ? '• PROCESO CORRIENDO EN HOST...' : '• EJECUCIÓN FINALIZADA' }}
+              </span>
+              <button type="button" class="panel-close-btn" @click="closeTerminalPanel" title="Cerrar y Matar Proceso">
+                <XIcon />
+              </button>
+            </div>
+          </div>
+          
+          <div class="terminal-panel-body" ref="terminalBodyRef">
+            <div v-for="(line, idx) in terminalLines" :key="idx" class="terminal-line" :class="line.type">
+              {{ line.text }}
+            </div>
+            <div v-if="terminalRunning" class="terminal-cursor">█</div>
+          </div>
         </div>
       </div>
 
@@ -174,28 +231,6 @@
               autoFocus
             />
           </div>
-
-          <div class="form-group">
-            <label>Carpeta de Destino:</label>
-            <div class="folder-selector">
-              <button 
-                type="button" 
-                class="selector-tab" 
-                :class="{ active: newFileFolder === 'Documentos' }"
-                @click="newFileFolder = 'Documentos'"
-              >
-                Documentos
-              </button>
-              <button 
-                type="button" 
-                class="selector-tab" 
-                :class="{ active: newFileFolder === 'Descargas' }"
-                @click="newFileFolder = 'Descargas'"
-              >
-                Descargas
-              </button>
-            </div>
-          </div>
         </div>
 
         <div class="modal-footer">
@@ -205,33 +240,80 @@
       </div>
     </div>
 
-    <!-- MODAL DE EJECUCIÓN (CONSOLA BREEZE KONSOLE - ABORTABLE) -->
-    <div v-if="showTerminalModal" class="modal-overlay" @click.self="closeTerminalModal">
-      <div class="breeze-terminal-modal">
-        <div class="terminal-header">
-          <TerminalIcon class="terminal-title-icon" />
-          <span>BREEZE KONSOLE - {{ currentFile?.name }}</span>
-          <button type="button" class="close-btn" @click="closeTerminalModal" title="Cerrar y Matar Proceso">
+    <!-- MODAL NUEVA CARPETA (ESTILO SERIO KDE BREEZE) -->
+    <div v-if="showNewFolderModal" class="modal-overlay" @click.self="showNewFolderModal = false">
+      <div class="breeze-modal">
+        <div class="modal-header">
+          <FolderPlusIcon class="modal-title-icon" />
+          <h3>CREAR NUEVA CARPETA</h3>
+          <button type="button" class="close-btn" @click="showNewFolderModal = false">
             <XIcon />
           </button>
         </div>
         
-        <div class="terminal-body" ref="terminalBodyRef">
-          <div v-for="(line, idx) in terminalLines" :key="idx" class="terminal-line" :class="line.type">
-            {{ line.text }}
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="new-folder-name-kate">Nombre de la carpeta:</label>
+            <input 
+              id="new-folder-name-kate"
+              type="text" 
+              class="breeze-input" 
+              v-model="newFolderName" 
+              placeholder="ejemplo: backend"
+              @keyup.enter="createNewFolder"
+              autoFocus
+            />
           </div>
-          <div v-if="terminalRunning" class="terminal-cursor">█</div>
         </div>
 
-        <div class="terminal-footer">
-          <span class="terminal-status" :class="{ running: terminalRunning }">
-            {{ terminalRunning ? '• PROCESO CORRIENDO EN HOST...' : '• EJECUCIÓN FINALIZADA' }}
-          </span>
-          <button type="button" class="terminal-close-btn" @click="closeTerminalModal" title="Cerrar y Matar Proceso">
-            Cerrar Consola
-          </button>
+        <div class="modal-footer">
+          <button type="button" class="modal-btn cancel" @click="showNewFolderModal = false">Cancelar</button>
+          <button type="button" class="modal-btn confirm" @click="createNewFolder">Crear Carpeta</button>
         </div>
       </div>
+    </div>
+
+
+
+    <!-- ── MENÚ CONTEXTUAL (KDE BREEZE STYLE) ── -->
+    <div
+      v-if="contextMenu.show"
+      class="breeze-context-menu"
+      :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+    >
+      <!-- Click derecho en archivo -->
+      <template v-if="contextMenu.targetFile">
+        <button type="button" class="context-item" @click="openContextFile">
+          <CodeIcon class="context-icon" />
+          <span>Abrir Archivo</span>
+        </button>
+        <button type="button" class="context-item item-danger" @click="deleteContextFile">
+          <TrashIcon class="context-icon" />
+          <span>Eliminar Archivo</span>
+        </button>
+      </template>
+
+      <!-- Click derecho en vacío de barra lateral o carpeta -->
+      <template v-else>
+        <button type="button" class="context-item" @click="triggerNewFile">
+          <PlusIcon class="context-icon" />
+          <span>Nuevo Archivo...</span>
+        </button>
+        <button type="button" class="context-item" @click="triggerNewFolder">
+          <FolderPlusIcon class="context-icon" />
+          <span>Nueva Carpeta...</span>
+        </button>
+        <!-- Si es una subcarpeta y no es una raíz del sistema, permitir borrarla -->
+        <button
+          v-if="contextMenu.targetFolder && contextMenu.targetFolder !== 'Documentos' && contextMenu.targetFolder !== 'Descargas'"
+          type="button"
+          class="context-item item-danger"
+          @click="deleteContextFolder"
+        >
+          <TrashIcon class="context-icon" />
+          <span>Eliminar Carpeta</span>
+        </button>
+      </template>
     </div>
 
     <!-- TOAST DE CONFIRMACIÓN BREEZE -->
@@ -253,7 +335,10 @@ import {
   Plus as PlusIcon, 
   Play as PlayIcon,
   X as XIcon,
-  Terminal as TerminalIcon
+  Terminal as TerminalIcon,
+  FolderPlus as FolderPlusIcon,
+  Trash as TrashIcon,
+  File as FileIcon
 } from 'lucide-vue-next';
 
 interface ActiveFile {
@@ -270,45 +355,193 @@ const originalContent = ref('');
 const fontSize = ref(14);
 const showNewFileModal = ref(false);
 const newFilename = ref('');
-const newFileFolder = ref<'Documentos' | 'Descargas'>('Documentos');
+const newFileFolder = ref<string>('Documentos');
+const showNewFolderModal = ref(false);
+const newFolderName = ref('');
+const newFolderParent = ref<string>('Documentos');
 const toastMessage = ref('');
 
-// UI collapsibles
-const categories = ref({
+// Menú contextual en barra lateral state
+const contextMenu = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  targetFile: null as string | null,
+  targetFolder: null as string | null
+});
+
+function handleEmptyAreaContextMenu(e: MouseEvent) {
+  contextMenu.value.x = e.clientX;
+  contextMenu.value.y = e.clientY;
+  contextMenu.value.targetFile = null;
+  contextMenu.value.targetFolder = null;
+  contextMenu.value.show = true;
+
+  window.addEventListener('click', closeContextMenu);
+}
+
+function handleItemContextMenu(e: MouseEvent, filename: string, folder: string) {
+  contextMenu.value.x = e.clientX;
+  contextMenu.value.y = e.clientY;
+  contextMenu.value.targetFile = filename;
+  contextMenu.value.targetFolder = folder;
+  contextMenu.value.show = true;
+
+  window.addEventListener('click', closeContextMenu);
+}
+
+function handleFolderContextMenu(e: MouseEvent, folder: string) {
+  contextMenu.value.x = e.clientX;
+  contextMenu.value.y = e.clientY;
+  contextMenu.value.targetFile = null;
+  contextMenu.value.targetFolder = folder;
+  contextMenu.value.show = true;
+
+  window.addEventListener('click', closeContextMenu);
+}
+
+function closeContextMenu() {
+  contextMenu.value.show = false;
+  window.removeEventListener('click', closeContextMenu);
+}
+
+function openContextFile() {
+  if (contextMenu.value.targetFile && contextMenu.value.targetFolder) {
+    selectFile(contextMenu.value.targetFile, contextMenu.value.targetFolder);
+  }
+}
+
+function deleteContextFile() {
+  if (contextMenu.value.targetFile && contextMenu.value.targetFolder) {
+    const filename = contextMenu.value.targetFile;
+    const folder = contextMenu.value.targetFolder;
+    
+    osStore.removeFileFromFolder(folder, filename);
+    showToast(`Eliminado: workspace/${folder}/${filename}`);
+    
+    if (currentFile.value && currentFile.value.name === filename && currentFile.value.folder === folder) {
+      currentFile.value = null;
+      editorContent.value = '';
+      originalContent.value = '';
+    }
+  }
+}
+
+function deleteContextFolder() {
+  if (contextMenu.value.targetFolder) {
+    const folderPath = contextMenu.value.targetFolder;
+    const lastSlash = folderPath.lastIndexOf('/');
+    const parent = lastSlash !== -1 ? folderPath.slice(0, lastSlash) : 'Inicio';
+    const folderName = lastSlash !== -1 ? folderPath.slice(lastSlash + 1) : folderPath;
+    
+    osStore.removeFileFromFolder(parent, folderName);
+    showToast(`Carpeta eliminada: workspace/${folderPath}`);
+    
+    if (currentFile.value && (currentFile.value.folder === folderPath || currentFile.value.folder.startsWith(folderPath + '/'))) {
+      currentFile.value = null;
+      editorContent.value = '';
+      originalContent.value = '';
+    }
+  }
+}
+
+function triggerNewFile() {
+  newFilename.value = '';
+  newFileFolder.value = 'Documentos';
+  showNewFileModal.value = true;
+}
+
+function triggerNewFolder() {
+  newFolderName.value = '';
+  newFolderParent.value = 'Documentos';
+  showNewFolderModal.value = true;
+}
+
+// UI collapsibles / Expanded folders
+const openFolders = ref<Record<string, boolean>>({
   Documentos: true,
   Descargas: true
 });
+
+function toggleFolder(path: string) {
+  openFolders.value[path] = !openFolders.value[path];
+}
 
 // Gutter and Sync refs
 const lineNumbersRef = ref<HTMLElement | null>(null);
 const textareaRef = ref<HTMLElement | null>(null);
 
-// Terminal modal state
-const showTerminalModal = ref(false);
+// Terminal panel state
+const showTerminalPanel = ref(false);
 const terminalRunning = ref(false);
 const terminalLines = ref<{ text: string; type: 'info' | 'output' | 'error' | 'success' }[]>([]);
 const terminalBodyRef = ref<HTMLElement | null>(null);
 
+// ---- TreeNode Interface ----
+interface TreeNode {
+  path: string;
+  name: string;
+  type: 'file' | 'dir';
+  level: number;
+  parentPath: string;
+  isOpen?: boolean;
+}
+
+// Recursive Tree Node Builder
+function buildTreeNodes(folderKey: string, level = 0): TreeNode[] {
+  const nodes: TreeNode[] = [];
+  const items = osStore.fileSystem[folderKey] || [];
+  
+  const sortedItems = [...items].sort((a, b) => {
+    if (a.type === b.type) {
+      return a.name.localeCompare(b.name);
+    }
+    return a.type === 'dir' ? -1 : 1;
+  });
+
+  for (const item of sortedItems) {
+    const itemPath = folderKey === 'Inicio' ? item.name : `${folderKey}/${item.name}`;
+    
+    if (item.type === 'file' && !isTextEditable(item.name)) {
+      continue;
+    }
+    
+    const node: TreeNode = {
+      path: itemPath,
+      name: item.name,
+      type: item.type,
+      level,
+      parentPath: folderKey,
+      isOpen: item.type === 'dir' ? !!openFolders.value[itemPath] : undefined
+    };
+    
+    nodes.push(node);
+    
+    if (item.type === 'dir' && openFolders.value[itemPath]) {
+      nodes.push(...buildTreeNodes(itemPath, level + 1));
+    }
+  }
+  
+  return nodes;
+}
+
 // ---- Computeds ----
-// Filter non-binary editable files from the workspace folders in osStore
-const documentFiles = computed(() => {
-  return (osStore.fileSystem['Documentos'] || []).filter(
-    (file) => file.type === 'file' && isTextEditable(file.name)
-  );
+const documentTreeNodes = computed(() => {
+  return buildTreeNodes('Documentos', 0);
 });
 
-const downloadFiles = computed(() => {
-  return (osStore.fileSystem['Descargas'] || []).filter(
-    (file) => file.type === 'file' && isTextEditable(file.name)
-  );
+const downloadTreeNodes = computed(() => {
+  return buildTreeNodes('Descargas', 0);
 });
 
 const firstAvailableFile = computed(() => {
-  if (documentFiles.value.length > 0) {
-    return { name: documentFiles.value[0].name, folder: 'Documentos' };
+  const docFile = documentTreeNodes.value.find(n => n.type === 'file');
+  if (docFile) {
+    return { name: docFile.name, folder: docFile.parentPath };
   }
-  if (downloadFiles.value.length > 0) {
-    return { name: downloadFiles.value[0].name, folder: 'Descargas' };
+  const dlFile = downloadTreeNodes.value.find(n => n.type === 'file');
+  if (dlFile) {
+    return { name: dlFile.name, folder: dlFile.parentPath };
   }
   return null;
 });
@@ -378,7 +611,7 @@ function createNewFile() {
     return;
   }
 
-  const folder = newFileFolder.value;
+  const folder = contextMenu.value.targetFolder || 'Documentos';
   const folderFiles = osStore.fileSystem[folder] || [];
   if (folderFiles.some(f => f.name.toLowerCase() === filename.toLowerCase())) {
     showToast(`"${filename}" ya existe en ${folder}`);
@@ -397,6 +630,35 @@ function createNewFile() {
 
   selectFile(filename, folder);
   showToast(`Creado en workspace/${folder}/${filename}`);
+}
+
+function createNewFolder() {
+  const name = newFolderName.value.trim();
+  if (!name) {
+    showToast('Nombre de carpeta vacío.');
+    return;
+  }
+
+  const parent = contextMenu.value.targetFolder || 'Documentos';
+  const folderFiles = osStore.fileSystem[parent] || [];
+  if (folderFiles.some(f => f.name.toLowerCase() === name.toLowerCase())) {
+    showToast(`"${name}" ya existe en ${parent}`);
+    return;
+  }
+
+  osStore.addFileToFolder(parent, {
+    name,
+    type: 'dir'
+  });
+
+  const fullKey = `${parent}/${name}`;
+  if (!osStore.fileSystem[fullKey]) {
+    osStore.fileSystem[fullKey] = [];
+  }
+
+  newFolderName.value = '';
+  showNewFolderModal.value = false;
+  showToast(`Carpeta creada en workspace/${parent}/${name}`);
 }
 
 function saveFile() {
@@ -449,7 +711,7 @@ async function runSimulation() {
     saveFile();
   }
   
-  showTerminalModal.value = true;
+  showTerminalPanel.value = true;
   terminalRunning.value = true;
   terminalLines.value = [];
 
@@ -523,15 +785,15 @@ async function runSimulation() {
   }
 }
 
-// Cierra la consola y mata el proceso colgado en el host de forma segura
-function closeTerminalModal() {
+// Cierra el panel terminal y mata el proceso colgado en el host de forma segura
+function closeTerminalPanel() {
   if (terminalRunning.value && currentFile.value) {
     window.osAPI.killFile(currentFile.value.folder, currentFile.value.name).catch(err => {
       console.error('[Kate] Error al abortar proceso en host:', err);
     });
     terminalRunning.value = false;
   }
-  showTerminalModal.value = false;
+  showTerminalPanel.value = false;
 }
 
 // Open activeOpenFile (if requested by file manager)
@@ -628,7 +890,7 @@ watch(
   flex-direction: column;
 }
 
-.folder-header {
+.folder-header, .tree-folder-header {
   display: flex;
   align-items: center;
   width: 100%;
@@ -645,7 +907,7 @@ watch(
   font-weight: 600;
 }
 
-.folder-header:hover {
+.folder-header:hover, .tree-folder-header:hover {
   background: var(--bg-hover);
 }
 
@@ -1226,51 +1488,92 @@ watch(
   border-color: var(--accent-hover);
 }
 
-/* BREEZE KONSOLE TERMINAL MODAL */
-.breeze-terminal-modal {
-  width: 580px;
-  background: #1c1f22;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-popup);
+/* BREEZE KONSOLE TERMINAL PANEL INTEGRADA */
+.editor-workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.breeze-terminal-panel {
+  height: 220px;
+  background: #141618;
+  border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   font-family: 'Fira Code', monospace;
 }
 
-.terminal-header {
+.terminal-panel-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  justify-content: space-between;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-titlebar);
   color: var(--text-primary);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: bold;
 }
 
-.terminal-title-icon {
+.terminal-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-panel-title-icon {
   width: 14px;
   height: 14px;
   color: var(--accent);
 }
 
-.terminal-header span {
-  flex: 1;
+.terminal-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
-.terminal-body {
-  height: 280px;
-  background: #141618;
-  padding: 16px;
+.terminal-panel-status {
+  font-size: 0.65rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.terminal-panel-status.running {
+  color: var(--accent);
+}
+
+.panel-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.panel-close-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.terminal-panel-body {
+  flex: 1;
+  padding: 12px 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 0.76rem;
-  line-height: 1.4;
+  font-size: 0.74rem;
+  line-height: 1.45;
   scrollbar-width: thin;
 }
 
@@ -1308,44 +1611,6 @@ watch(
   50% { opacity: 0; }
 }
 
-.terminal-footer {
-  padding: 12px 16px;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-titlebar);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.terminal-status {
-  font-size: 0.65rem;
-  font-weight: bold;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary);
-}
-
-.terminal-status.running {
-  color: var(--accent);
-}
-
-.terminal-close-btn {
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  color: #ffffff;
-  padding: 6px 16px;
-  border-radius: var(--radius-md);
-  font-family: inherit;
-  font-size: 0.72rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.terminal-close-btn:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
-
 /* BREEZE TOAST NOTIFICATION */
 .breeze-toast {
   position: absolute;
@@ -1370,5 +1635,50 @@ watch(
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
   transform: translateY(10px);
+}
+
+/* ── MENÚ CONTEXTUAL (KDE BREEZE STYLE) ── */
+.breeze-context-menu {
+  position: fixed;
+  background: #232629;
+  border: 1px solid #31363b;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 4px 0;
+  min-width: 150px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+}
+
+.context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #eff0f1;
+  font-family: inherit;
+  font-size: 0.76rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.context-item:hover {
+  background: #3daee9;
+  color: #ffffff;
+}
+
+.context-item.item-danger:hover {
+  background: #da4453;
+  color: #ffffff;
+}
+
+.context-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.85;
 }
 </style>
